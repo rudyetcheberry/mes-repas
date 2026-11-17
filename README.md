@@ -28,8 +28,10 @@ Ouvrez directement l'URL de l'application, ou téléchargez `index.html` et doub
 
 ## 💰 Budget
 
-- **Saisie des tickets de caisse** : article, catégorie (devinée automatiquement), quantité, prix
-- **Collage direct du texte du ticket** : photo du ticket → Google Lens (ou OCR du téléphone) → copier-coller ; l'application extrait les lignes « nom … prix » et ignore TOTAL / TVA / ESPÈCES
+- **⚡ Ticket express** : date + magasin + total, c'est tout — le budget se met à jour en 10 secondes (sans détail par rayon)
+- **📷 Photo du ticket intégrée** : photographiez le ticket depuis l'application, l'OCR intégré lit les lignes « nom … prix » et remplit le ticket automatiquement (première utilisation : téléchargement du module de lecture, connexion requise une fois)
+- **Collage de texte** : alternative via Google Lens (photo → copier le texte → coller) ; les lignes TOTAL / TVA / ESPÈCES sont ignorées
+- **Saisie détaillée** : article, catégorie (devinée automatiquement), quantité, prix
 - Tableau de bord : dépenses du mois, panier moyen, dépense hebdomadaire moyenne, répartition par catégorie, évolution sur 6 mois
 - Suivi vs objectif mensuel + historique ; l'objectif peut être défini après 1-2 mois d'observation
 - Export CSV des tickets, export/import JSON de sauvegarde complète
