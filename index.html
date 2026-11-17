@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#3e7d4f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <title>Maison &amp; Repas — Menus, courses et budget</title>
 <style>
   :root{
@@ -827,6 +830,11 @@ function importData(input){
 $('dashMonth').value = currentMonth();
 populateCatSelects();
 render();
+
+/* PWA : service worker (uniquement en ligne, pas en fichier local) */
+if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
 </script>
 </body>
 </html>

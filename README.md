@@ -1,10 +1,18 @@
 # 🏠 Maison & Repas
 
-Application HTML autonome (un seul fichier, aucune dépendance, fonctionne hors ligne) pour organiser les repas de la maison : **menus de la semaine, liste de courses et budget**, alimentée par la saisie des tickets de caisse.
+PWA (application web installable) pour organiser les repas de la maison : **menus de la semaine, liste de courses et budget**, alimentée par la saisie des tickets de caisse. Un seul écran, aucune dépendance, fonctionne hors ligne.
 
-## 🚀 Ouverture
+## 📱 Installation sur smartphone
 
-Téléchargez `organisation-repas.html` puis ouvrez-le d'un double-clic dans n'importe quel navigateur (ordinateur, tablette ou téléphone). Aucune installation, aucun compte, aucune connexion internet nécessaire.
+1. Ouvrez l'adresse de l'application (GitHub Pages) dans Chrome/Safari
+2. **Android (Chrome)** : menu ⋮ → « Ajouter à l'écran d'accueil »
+3. **iPhone (Safari)** : bouton Partager → « Sur l'écran d'accueil »
+
+L'application s'ouvre alors comme une vraie appli, plein écran, même sans internet.
+
+## 🚀 Ouverture sur ordinateur
+
+Ouvrez directement l'URL de l'application, ou téléchargez `index.html` et double-cliquez dessus (fonctionne aussi en fichier local, sans installation).
 
 ## 📅 Menus
 
@@ -28,4 +36,4 @@ Téléchargez `organisation-repas.html` puis ouvrez-le d'un double-clic dans n'i
 
 ## 💾 Données
 
-Tout est stocké **localement dans votre navigateur** (localStorage du fichier ouvert). Pensez à utiliser régulièrement le bouton **⬇ Sauvegarder** (en haut à droite) : le fichier JSON créé peut être rechargé via **⬆ Restaurer**, par exemple pour changer d'appareil ou de navigateur.
+Tout est stocké **localement dans votre navigateur** (rien n'est envoyé sur internet). Pensez à utiliser régulièrement le bouton **⬇ Sauvegarder** (en haut à droite) : le fichier JSON créé peut être rechargé via **⬆ Restaurer**, par exemple pour changer d'appareil ou de navigateur.
