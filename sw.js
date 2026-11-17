@@ -1,4 +1,4 @@
-const CACHE = 'maison-repas-v2';
+const CACHE = 'maison-repas-v3';
 const SHELL = [
   './index.html',
   './manifest.webmanifest',
@@ -22,6 +22,8 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  if (url.origin !== location.origin) return;
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const network = fetch(event.request)
