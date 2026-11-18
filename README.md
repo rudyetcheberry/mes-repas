@@ -26,6 +26,13 @@ Ouvrez directement l'URL de l'application, ou téléchargez `index.html` et doub
 - Liste organisée par rayon (8 catégories), cases à cocher, ajout manuel, impression, copie
 - Conseils anti-gaspillage et routines de courses intégrés
 
+## 💸 Remboursements (Sarah / Rudy / Crésus)
+
+- Chaque ticket indique **qui a payé** : Sarah, Rudy ou Crésus
+- Ticket payé par l'un des deux → **l'autre doit la moitié** (total / 2), calculée automatiquement
+- Tickets **Crésus** → exclus des remboursements
+- Onglet **Remboursements** : solde net (« qui doit quoi à qui »), détail des dettes brutes et déduction des remboursements déjà effectués (espèces, virements…) via le formulaire « Remboursement effectué »
+
 ## 💰 Budget
 
 - **⚡ Ticket express** : date + magasin + total, c'est tout — le budget se met à jour en 10 secondes (sans détail par rayon)

@@ -101,6 +101,7 @@
 <nav>
   <button data-tab="dashboard" class="active">Tableau de bord</button>
   <button data-tab="tickets">Tickets de caisse</button>
+  <button data-tab="remboursements">Remboursements</button>
   <button data-tab="menus">Menus de la semaine</button>
   <button data-tab="recettes">Recettes</button>
   <button data-tab="courses">Liste de courses</button>
@@ -227,6 +228,49 @@
   </div>
 </section>
 
+<section id="tab-remboursements" style="display:none">
+  <div class="grid cols2">
+    <div class="kpi" style="margin-bottom:0;">
+      <div class="label">Situation actuelle</div>
+      <div class="value accent" id="remNet" style="color:var(--accent);">—</div>
+      <div class="sub" id="remNetSub"></div>
+    </div>
+    <div class="card" style="margin-bottom:0;">
+      <h2>＋ Remboursement effectué</h2>
+      <div class="row">
+        <div><label>Qui a remboursé ?</label>
+          <select id="pQui"><option value="Rudy">Rudy → Sarah</option><option value="Sarah">Sarah → Rudy</option></select>
+        </div>
+        <div><label>Montant (€)</label><input type="number" id="pMontant" step="any" min="0" style="width:110px;"></div>
+        <div><label>Date</label><input type="date" id="pDate"></div>
+        <button class="btn" onclick="addPaiement()">Enregistrer</button>
+      </div>
+      <p class="hint">À utiliser quand l'un de vous deux rembourse réellement l'autre (espèces, virement…). Le solde se met à jour.</p>
+    </div>
+  </div>
+
+  <div class="grid cols2" style="margin-top:20px;">
+    <div class="card" style="margin-bottom:0;">
+      <h2>📊 Détail des dettes</h2>
+      <div id="remDetail"></div>
+    </div>
+    <div class="card" style="margin-bottom:0;">
+      <h2>📖 Historique</h2>
+      <div id="remHistory"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px;">
+    <h2>ℹ️ Règle de calcul</h2>
+    <ul style="font-size:13px; line-height:1.9; padding-left:18px; color:var(--muted);">
+      <li><strong>Ticket payé par Sarah</strong> → Rudy doit <strong>total / 2</strong> à Sarah.</li>
+      <li><strong>Ticket payé par Rudy</strong> → Sarah doit <strong>total / 2</strong> à Rudy.</li>
+      <li><strong>Ticket Crésus</strong> → aucun remboursement (exclu du calcul).</li>
+      <li>Chaque remboursement effectué réduit la dette correspondante.</li>
+    </ul>
+  </div>
+</section>
+
 <section id="tab-budget" style="display:none">
   <div class="grid cols2">
     <div class="card">
@@ -270,7 +314,12 @@
     <h3>Nouveau ticket de caisse</h3>
     <div class="row" style="margin-bottom:14px;">
       <div><label>Date</label><input type="date" id="tDate"></div>
-      <div><label>Magasin</label><input type="text" id="tStore" placeholder="Ex : Carrefour, Lidl, Marché…" style="width:200px;"></div>
+      <div><label>Magasin</label><input type="text" id="tStore" placeholder="Ex : Carrefour, Lidl, Marché…" style="width:170px;"></div>
+      <div><label>Payé par</label>
+        <select id="tPayer" style="width:120px;">
+          <option>Rudy</option><option>Sarah</option><option>Crésus</option>
+        </select>
+      </div>
     </div>
     <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink); margin-bottom:10px; cursor:pointer; font-weight:500;">
       <input type="checkbox" id="tExpress" style="width:16px; height:16px; accent-color:var(--green);" onchange="toggleExpress()">
@@ -388,6 +437,7 @@ const DEFAULT_RECIPES = [
 ];
 
 let state = load();
+if(!state.paiements) state.paiements = [];
 function load(){
   try{
     const s = JSON.parse(localStorage.getItem(LS_KEY));
@@ -467,6 +517,7 @@ function render(){
   const m = $('dashMonth').value || currentMonth();
   renderDashboard(m);
   renderTickets();
+  renderRemboursements();
   renderMenu();
   renderRecipes();
   renderShoppingList();
@@ -480,7 +531,7 @@ function monthStats(month){
     if(monthOf(t.date)!==month) return;
     let tt=0;
     t.items.forEach(it=>{ const p=(it.prix||0)*(it.qte||1); tt+=p; total+=p; byCat[it.cat]=(byCat[it.cat]||0)+p; });
-    byTicket.push({id:t.id, date:t.date, magasin:t.magasin, items:t.items, total:tt}); count++;
+    byTicket.push({id:t.id, date:t.date, magasin:t.magasin, items:t.items, total:tt, payer:t.payer}); count++;
   });
   byTicket.sort((a,b)=>b.date.localeCompare(a.date));
   return {total:total, count:count, byCat:byCat, tickets:byTicket};
@@ -523,8 +574,8 @@ function renderDashboard(month){
   const lt = $('lastTickets');
   if(!s.tickets.length){ lt.innerHTML = '<div class="empty">Aucun ticket pour ce mois.</div>'; }
   else{
-    lt.innerHTML = '<table><thead><tr><th>Date</th><th>Magasin</th><th>Articles</th><th class="num">Total</th><th></th></tr></thead><tbody>' +
-      s.tickets.slice(0,8).map(t=>'<tr><td>'+fmtDate(t.date)+'</td><td>'+esc(t.magasin||'—')+'</td><td>'+t.items.length+'</td><td class="num"><strong>'+eur(t.total)+'</strong></td><td><button class="btn danger small" onclick="deleteTicket(\''+t.id+'\')">✕</button></td></tr>').join('') +
+    lt.innerHTML = '<table><thead><tr><th>Date</th><th>Magasin</th><th>Payé par</th><th class="num">Total</th><th></th></tr></thead><tbody>' +
+      s.tickets.slice(0,8).map(t=>'<tr><td>'+fmtDate(t.date)+'</td><td>'+esc(t.magasin||'—')+'</td><td>'+(t.payer?'<span class="pill'+(t.payer==='Crésus'?' gray':'')+'">'+t.payer+'</span>':'—')+'</td><td class="num"><strong>'+eur(t.total)+'</strong></td><td><button class="btn danger small" onclick="deleteTicket(\''+t.id+'\')">✕</button></td></tr>').join('') +
       '</tbody></table>';
   }
 }
@@ -591,7 +642,7 @@ function saveTicket(){
     items = readTicketRows();
     if(!items.length){ toast('Ajoutez au moins un article avec un prix'); return; }
   }
-  state.tickets.push({ id:uid(), date:$('tDate').value||todayISO(), magasin:$('tStore').value.trim(), items:items });
+  state.tickets.push({ id:uid(), date:$('tDate').value||todayISO(), magasin:$('tStore').value.trim(), items:items, payer:$('tPayer').value });
   save(); closeTicketModal(); toast('Ticket enregistré ✓'); render();
 }
 function deleteTicket(id){
@@ -602,11 +653,11 @@ function renderTickets(){
   const list = state.tickets.slice().sort((a,b)=>b.date.localeCompare(a.date));
   const el = $('ticketsList');
   if(!list.length){ el.innerHTML='<div class="empty">Aucun ticket enregistré. Cliquez sur « Ajouter un ticket » après vos courses.</div>'; return; }
-  el.innerHTML = '<table><thead><tr><th>Date</th><th>Magasin</th><th>Détail</th><th class="num">Total</th><th></th></tr></thead><tbody>' +
+  el.innerHTML = '<table><thead><tr><th>Date</th><th>Magasin</th><th>Payé par</th><th>Détail</th><th class="num">Total</th><th></th></tr></thead><tbody>' +
     list.map(t=>{
-      const total = t.items.reduce((a,i)=>a+(i.prix||0)*(i.qte||1),0);
+      const total = ticketTotal(t);
       const detail = t.items.map(i=>esc(i.nom)).join(', ');
-      return '<tr><td>'+fmtDate(t.date)+'</td><td>'+esc(t.magasin||'—')+'</td><td style="max-width:380px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="'+detail+'">'+detail+'</td><td class="num"><strong>'+eur(total)+'</strong></td><td><button class="btn danger small" onclick="deleteTicket(\''+t.id+'\')">✕</button></td></tr>';
+      return '<tr><td>'+fmtDate(t.date)+'</td><td>'+esc(t.magasin||'—')+'</td><td>'+(t.payer?'<span class="pill'+(t.payer==='Crésus'?' gray':'')+'">'+t.payer+'</span>':'—')+'</td><td style="max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="'+detail+'">'+detail+'</td><td class="num"><strong>'+eur(total)+'</strong></td><td><button class="btn danger small" onclick="deleteTicket(\''+t.id+'\')">✕</button></td></tr>';
     }).join('') + '</tbody></table>';
 }
 function exportTicketsCSV(){
@@ -711,6 +762,80 @@ function parsePastedTicket(){
   });
   closePasteModal(); updateTicketTotal();
   toast(added ? added+' ligne(s) détectée(s) ✓ — vérifiez et corrigez si besoin' : 'Aucune ligne détectée — vérifiez le format (nom … prix)');
+}
+
+/* REMBOURSEMENTS */
+function ticketTotal(t){ return t.items.reduce((a,i)=>a+(i.prix||0)*(i.qte||1),0); }
+function computeBalance(){
+  let rudyDoit=0, sarahDoit=0; const rows=[];
+  state.tickets.forEach(t=>{
+    const total = ticketTotal(t);
+    if(t.payer==='Sarah'){ rudyDoit += total/2; rows.push({type:'ticket', date:t.date, label:'Ticket '+(t.magasin||''), payer:'Sarah', total:total, part:total/2}); }
+    else if(t.payer==='Rudy'){ sarahDoit += total/2; rows.push({type:'ticket', date:t.date, label:'Ticket '+(t.magasin||''), payer:'Rudy', total:total, part:total/2}); }
+  });
+  state.paiements.forEach(p=>{
+    if(p.sens==='Rudy'){ rudyDoit -= p.montant; rows.push({id:p.id, type:'paiement', date:p.date, label:'Rudy a remboursé Sarah', montant:p.montant}); }
+    else { sarahDoit -= p.montant; rows.push({id:p.id, type:'paiement', date:p.date, label:'Sarah a remboursé Rudy', montant:p.montant}); }
+  });
+  rows.sort((a,b)=>b.date.localeCompare(a.date));
+  return {rudyDoit:rudyDoit, sarahDoit:sarahDoit, rows:rows};
+}
+function renderRemboursements(){
+  const b = computeBalance();
+  const net = b.rudyDoit - b.sarahDoit;
+  const netEl = $('remNet');
+  if(Math.abs(net) < 0.005){
+    netEl.textContent = 'Équilibré ✓';
+    netEl.style.color = 'var(--green)';
+    $('remNetSub').textContent = 'aucune dette en cours';
+  } else if(net > 0){
+    netEl.textContent = 'Rudy → Sarah : '+eur(net);
+    netEl.style.color = 'var(--danger)';
+    $('remNetSub').textContent = 'Rudy doit '+eur(net)+' à Sarah';
+  } else {
+    netEl.textContent = 'Sarah → Rudy : '+eur(-net);
+    netEl.style.color = 'var(--accent)';
+    $('remNetSub').textContent = 'Sarah doit '+eur(-net)+' à Rudy';
+  }
+  const rudyBrut = b.rudyDoit + state.paiements.filter(p=>p.sens==='Rudy').reduce((a,p)=>a+p.montant,0);
+  const sarahBrut = b.sarahDoit + state.paiements.filter(p=>p.sens==='Sarah').reduce((a,p)=>a+p.montant,0);
+  const rudyPaye = state.paiements.filter(p=>p.sens==='Rudy').reduce((a,p)=>a+p.montant,0);
+  const sarahPaye = state.paiements.filter(p=>p.sens==='Sarah').reduce((a,p)=>a+p.montant,0);
+  $('remDetail').innerHTML = '<table><tbody>'+
+    '<tr><td>Dette brute : <strong>Rudy → Sarah</strong> (parts des tickets payés par Sarah)</td><td class="num"><strong>'+eur(rudyBrut)+'</strong></td></tr>'+
+    '<tr><td>Remboursements déjà faits par Rudy</td><td class="num" style="color:var(--green)">−'+eur(rudyPaye)+'</td></tr>'+
+    '<tr><td>Dette brute : <strong>Sarah → Rudy</strong> (parts des tickets payés par Rudy)</td><td class="num"><strong>'+eur(sarahBrut)+'</strong></td></tr>'+
+    '<tr><td>Remboursements déjà faits par Sarah</td><td class="num" style="color:var(--green)">−'+eur(sarahPaye)+'</td></tr>'+
+    '</tbody></table>';
+  const hist = $('remHistory');
+  const concernés = b.rows;
+  if(!concernés.length){ hist.innerHTML = '<div class="empty">Aucun ticket partagé ni remboursement pour l\'instant.</div>'; return; }
+  hist.innerHTML = '<table><thead><tr><th>Date</th><th>Opération</th><th class="num">Impact</th><th></th></tr></thead><tbody>'+
+    concernés.map(r=>{
+      let impact, del='';
+      if(r.type==='ticket'){
+        impact = r.payer==='Sarah'
+          ? '<span style="color:var(--danger)">+'+eur(r.part)+' dette Rudy</span>'
+          : '<span style="color:var(--accent)">+'+eur(r.part)+' dette Sarah</span>';
+      } else {
+        impact = r.label.indexOf('Rudy')===0
+          ? '<span style="color:var(--green)">−'+eur(r.montant)+' dette Rudy</span>'
+          : '<span style="color:var(--green)">−'+eur(r.montant)+' dette Sarah</span>';
+        del = '<button class="btn danger small" onclick="deletePaiement(\''+r.id+'\')">✕</button>';
+      }
+      return '<tr><td>'+fmtDate(r.date)+'</td><td>'+esc(r.label)+(r.payer?' <span class="pill">payé '+r.payer+'</span>':'')+'<br><span style="font-size:11px; color:var(--muted);">'+(r.type==='ticket'?'total '+eur(r.total):'')+'</span></td><td class="num">'+impact+'</td><td>'+del+'</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+function addPaiement(){
+  const montant = parseFloat($('pMontant').value);
+  if(!montant || montant<=0){ toast('Indiquez un montant'); return; }
+  state.paiements.push({ id:uid(), date:$('pDate').value||todayISO(), sens:$('pQui').value, montant:montant });
+  $('pMontant').value='';
+  save(); render(); toast('Remboursement enregistré ✓');
+}
+function deletePaiement(id){
+  if(!confirm('Supprimer ce remboursement ?')) return;
+  state.paiements = state.paiements.filter(p=>p.id!==id); save(); render();
 }
 
 /* MENUS */
