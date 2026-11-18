@@ -93,6 +93,7 @@
   <span class="tag">Menus · Courses · Budget</span>
   <span style="margin-left:auto; display:flex; gap:8px;">
     <button class="btn secondary small" style="background:rgba(255,255,255,.2); color:#fff;" onclick="exportData()">⬇ Sauvegarder</button>
+    <button class="btn secondary small" style="background:rgba(255,255,255,.2); color:#fff;" onclick="shareData()">🔗 Partager</button>
     <button class="btn secondary small" style="background:rgba(255,255,255,.2); color:#fff;" onclick="document.getElementById('importFile').click()">⬆ Restaurer</button>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">
   </span>
@@ -1054,6 +1055,19 @@ function download(filename, content, type){
   setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 }
 function exportData(){ download('maison-repas-sauvegarde.json', JSON.stringify(state, null, 2), 'application/json'); toast('Sauvegarde téléchargée ✓'); }
+function shareData(){
+  const t = JSON.stringify(state, null, 2);
+  const blob = new Blob([t], {type:'application/json'});
+  const file = new File([blob], 'maison-repas-sauvegarde.json', {type:'application/json'});
+  if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+    navigator.share({files:[file], title:'Sauvegarde Maison & Repas'})
+      .then(()=>toast('Sauvegarde partagée ✓'))
+      .catch(()=>{});
+  } else {
+    exportData();
+    toast('Partage indisponible ici : fichier téléchargé, envoyez-le depuis vos applications');
+  }
+}
 function importData(input){
   const f = input.files[0]; if(!f) return;
   const reader = new FileReader();
