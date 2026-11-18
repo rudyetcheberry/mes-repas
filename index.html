@@ -1056,16 +1056,27 @@ function download(filename, content, type){
 }
 function exportData(){ download('maison-repas-sauvegarde.json', JSON.stringify(state, null, 2), 'application/json'); toast('Sauvegarde téléchargée ✓'); }
 function shareData(){
-  const t = JSON.stringify(state, null, 2);
-  const blob = new Blob([t], {type:'application/json'});
-  const file = new File([blob], 'maison-repas-sauvegarde.json', {type:'application/json'});
-  if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
-    navigator.share({files:[file], title:'Sauvegarde Maison & Repas'})
-      .then(()=>toast('Sauvegarde partagée ✓'))
-      .catch(()=>{});
-  } else {
+  try{
+    const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+    const file = new File([blob], 'maison-repas-sauvegarde.json', {type:'application/json'});
+    if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file], title:'Sauvegarde Maison & Repas'})
+        .then(()=>toast('Sauvegarde partagée ✓'))
+        .catch(err=>{
+          if(err && err.name === 'AbortError') return;
+          exportData();
+          toast('Partage indisponible : sauvegarde téléchargée, envoyez-la depuis vos applis');
+        });
+    } else if(navigator.share){
+      exportData();
+      toast('Ce navigateur ne partage pas de fichiers : sauvegarde téléchargée');
+    } else {
+      exportData();
+      toast('Partage non géré ici : sauvegarde téléchargée, envoyez-la par email ou WhatsApp');
+    }
+  }catch(err){
     exportData();
-    toast('Partage indisponible ici : fichier téléchargé, envoyez-le depuis vos applications');
+    toast('Sauvegarde téléchargée : envoyez-la par email ou WhatsApp');
   }
 }
 function importData(input){
