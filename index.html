@@ -330,7 +330,7 @@
         <div><label>Total du ticket (€)</label><input type="number" id="tTotal" step="any" min="0" style="width:130px;" oninput="updateTicketTotal()"></div>
         <div><label>Catégorie principale</label><select id="tExpressCat"></select></div>
       </div>
-      <p class="hint" style="margin-top:8px;">Idéal pour suivre le budget sans saisir chaque article. Pour la répartition par rayon, utilisez la photo du ticket (onglet détail).</p>
+      <p class="hint" style="margin-top:8px;">Idéal pour suivre le budget sans saisir chaque article. Pour la répartition par rayon alimentaire, utilisez la photo ou le collage du ticket (mode détaillé).</p>
     </div>
     <div id="detailZone">
       <label style="margin-bottom:6px;">Articles</label>
@@ -408,7 +408,8 @@
 /* ÉTAT & PERSISTANCE */
 const LS_KEY = 'maisonRepas_v1';
 const CATS = ['Fruits & Légumes','Viande & Poisson','Produits laitiers','Épicerie','Surgelés','Boissons','Hygiène & Maison','Autre'];
-const CAT_COLORS = {'Fruits & Légumes':'#3e7d4f','Viande & Poisson':'#c0453a','Produits laitiers':'#5a7fb5','Épicerie':'#d97b3f','Surgelés':'#7a6fb0','Boissons':'#3f9bb5','Hygiène & Maison':'#8a887f','Autre':'#b5a55a'};
+const CAT_COLORS = {'Fruits & Légumes':'#3e7d4f','Viande & Poisson':'#c0453a','Produits laitiers':'#5a7fb5','Épicerie':'#d97b3f','Surgelés':'#7a6fb0','Boissons':'#3f9bb5','Hygiène & Maison':'#8a887f','Autre':'#b5a55a','Alimentation':'#3e7d4f','Transport':'#5a7fb5','Santé':'#c0453a','Loisirs':'#7a6fb0','Habillement':'#d97b3f','Maison':'#8a887f'};
+const EXPRESS_CATS = ['Alimentation','Transport','Santé','Loisirs','Habillement','Maison','Autre'];
 
 const DEFAULT_RECIPES = [
   {nom:'Pâtes carbonara', categorie:'Plat principal', servings:4, ingredients:[
@@ -947,8 +948,8 @@ function editRecipeById(id){ openRecipeModal(state.recettes.find(r=>r.id===id));
 /* LISTE DE COURSES */
 function populateCatSelects(){
   $('newItemCat').innerHTML = CATS.map(c=>'<option>'+c+'</option>').join('');
-  $('tExpressCat').innerHTML = CATS.map(c=>'<option>'+c+'</option>').join('');
-  $('tExpressCat').value = 'Épicerie';
+  $('tExpressCat').innerHTML = EXPRESS_CATS.map(c=>'<option>'+c+'</option>').join('');
+  $('tExpressCat').value = 'Alimentation';
 }
 function generateShoppingList(){
   const week = state.menus[currentWeek] || {};
