@@ -338,15 +338,15 @@
 </main>
 
 <div class="mobile-nav" id="mobileNav">
-  <button data-tab="dashboard" class="active"><span class="ico">🏠</span>Accueil</button>
-  <button data-tab="tickets"><span class="ico">🎫</span>Tickets</button>
-  <button data-tab="courses"><span class="ico">🛒</span>Courses</button>
-  <button data-tab="menus"><span class="ico">📅</span>Menus</button>
-  <button data-tab="budget"><span class="ico">💰</span>Budget</button>
+  <button onclick="showTab('dashboard')" class="active"><span class="ico">🏠</span>Accueil</button>
+  <button onclick="showTab('tickets')"><span class="ico">🎫</span>Tickets</button>
+  <button onclick="showTab('courses')"><span class="ico">🛒</span>Courses</button>
+  <button onclick="showTab('remboursements')"><span class="ico">↔️</span>Remboursements</button>
+  <button onclick="showTab('budget')"><span class="ico">💰</span>Budget</button>
   <button onclick="toggleMore()"><span class="ico">⋯</span>Plus</button>
 </div>
 <div id="moreSheet">
-  <button onclick="showTab('remboursements')">↔️ Remboursements</button>
+  <button onclick="showTab('menus')">📅 Menus de la semaine</button>
   <button onclick="showTab('recettes')">📖 Recettes</button>
 </div>
 <button class="fab" onclick="openTicketModal()" aria-label="Nouveau ticket">＋</button>
