@@ -28,7 +28,7 @@
   .grid{display:grid; gap:16px;}
   .grid.cols2{grid-template-columns:1fr 1fr;}
   .grid.cols4{grid-template-columns:repeat(4,1fr);}
-  @media(max-width:800px){ .grid.cols2,.grid.cols4{grid-template-columns:1fr;} }
+  @media(max-width:800px){ .grid.cols2{grid-template-columns:1fr;} .grid.cols4{grid-template-columns:1fr 1fr;} }
   .kpi{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px;}
   .kpi .label{font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px;}
   .kpi .value{font-size:26px; font-weight:700; margin-top:4px;}
@@ -79,8 +79,36 @@
   @media(max-width:700px){ .item-row{grid-template-columns:1fr 100px 60px 80px 34px;} }
   .progress-big{height:16px; border-radius:8px; background:#f0efe9; overflow:hidden; margin:10px 0 6px;}
   .progress-big .bar{height:100%;}
+  .mobile-nav, .fab, #moreSheet{display:none;}
+  @media(max-width:800px){
+    header{padding:12px 14px; gap:8px;}
+    header h1{font-size:17px;}
+    header .tag{display:none;}
+    nav{display:none;}
+    main{max-width:none; padding:14px 12px 110px;}
+    .card{padding:14px; margin-bottom:14px;}
+    .kpi{padding:12px;}
+    .kpi .value{font-size:22px;}
+    table{font-size:13px;}
+    button.btn{padding:12px 16px; font-size:14px;}
+    button.btn.small{padding:8px 12px; font-size:13px;}
+    input,select,textarea{font-size:16px;}
+    .toast{bottom:96px;}
+    .mobile-nav{display:flex; position:fixed; bottom:0; left:0; right:0; z-index:60; background:var(--card); border-top:1px solid var(--line); box-shadow:0 -2px 12px rgba(0,0,0,.06); padding-bottom:env(safe-area-inset-bottom);}
+    .mobile-nav button{flex:1; border:none; background:none; padding:8px 0 7px; font-size:10.5px; color:var(--muted); display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; font-weight:500;}
+    .mobile-nav button .ico{font-size:21px; line-height:1;}
+    .mobile-nav button.active{color:var(--green); font-weight:600;}
+    .fab{display:flex; position:fixed; right:16px; bottom:calc(74px + env(safe-area-inset-bottom)); width:56px; height:56px; border-radius:50%; background:var(--accent); color:#fff; font-size:26px; align-items:center; justify-content:center; border:none; box-shadow:0 4px 14px rgba(0,0,0,.25); z-index:55; cursor:pointer; padding:0; line-height:1;}
+    #moreSheet{display:block; position:fixed; bottom:calc(64px + env(safe-area-inset-bottom)); right:10px; left:10px; z-index:59; background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:0 -4px 20px rgba(0,0,0,.12); padding:8px; transform:translateY(16px); opacity:0; pointer-events:none; transition:opacity .15s, transform .15s;}
+    #moreSheet.open{transform:translateY(0); opacity:1; pointer-events:auto;}
+    #moreSheet button{width:100%; text-align:left; border:none; background:none; padding:14px 12px; font-size:15px; border-radius:10px; display:flex; gap:10px; cursor:pointer; color:var(--ink);}
+    #moreSheet button:active{background:var(--green-soft);}
+    .modal-bg{padding:0; align-items:stretch;}
+    .modal{max-width:none; border-radius:0; min-height:100vh; padding:16px 16px 60px;}
+    .close-x{font-size:24px; padding:6px;}
+  }
   @media print{
-    header,nav,.no-print{display:none !important;}
+    header,nav,.no-print,.mobile-nav,.fab,#moreSheet{display:none !important;}
     body{background:#fff;}
     .card{border:none; padding:0;}
   }
@@ -309,6 +337,20 @@
 
 </main>
 
+<div class="mobile-nav" id="mobileNav">
+  <button data-tab="dashboard" class="active"><span class="ico">🏠</span>Accueil</button>
+  <button data-tab="tickets"><span class="ico">🎫</span>Tickets</button>
+  <button data-tab="courses"><span class="ico">🛒</span>Courses</button>
+  <button data-tab="menus"><span class="ico">📅</span>Menus</button>
+  <button data-tab="budget"><span class="ico">💰</span>Budget</button>
+  <button onclick="toggleMore()"><span class="ico">⋯</span>Plus</button>
+</div>
+<div id="moreSheet">
+  <button onclick="showTab('remboursements')">↔️ Remboursements</button>
+  <button onclick="showTab('recettes')">📖 Recettes</button>
+</div>
+<button class="fab" onclick="openTicketModal()" aria-label="Nouveau ticket">＋</button>
+
 <div class="modal-bg" id="ticketModal">
   <div class="modal">
     <button class="close-x" onclick="closeTicketModal()">✕</button>
@@ -509,10 +551,16 @@ document.querySelectorAll('nav button').forEach(b=>{
   b.addEventListener('click', ()=>showTab(b.dataset.tab));
 });
 function showTab(name){
-  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+  document.querySelectorAll('nav button, .mobile-nav button').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
   document.querySelectorAll('main > section').forEach(s=>s.style.display='none');
   $('tab-'+name).style.display='block';
+  toggleMore(false);
   render();
+}
+function toggleMore(force){
+  const s = $('moreSheet');
+  const open = (force===undefined) ? !s.classList.contains('open') : force;
+  s.classList.toggle('open', open);
 }
 
 function render(){

@@ -1,4 +1,4 @@
-const CACHE = 'maison-repas-v7';
+const CACHE = 'maison-repas-v8';
 const SHELL = [
   './index.html',
   './manifest.webmanifest',
