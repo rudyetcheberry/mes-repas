@@ -716,7 +716,7 @@ function renderTickets(){
     list.map(t=>{
       const total = ticketTotal(t);
       const detail = t.items.map(i=>esc(i.nom)).join(', ');
-      return '<tr><td>'+fmtDate(t.date)+'</td><td>'+esc(t.magasin||'—')+'</td><td>'+(t.payer?'<span class="pill'+(t.payer==='Crésus'?' gray':'')+'">'+t.payer+'</span>':'—')+'</td><td style="max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="'+detail+'">'+detail+'</td><td class="num"><strong>'+eur(total)+'</strong></td><td><button class="btn danger small" onclick="deleteTicket(\''+t.id+'\')">✕</button></td></tr>';
+      return '<tr><td>'+fmtDate(t.date)+'</td><td>'+esc(t.magasin||'—')+(t.numTicket?' <span class="pill gray" title="Numéro de ticket du fichier Excel">n°'+esc(t.numTicket)+'</span>':'')+'</td><td>'+(t.payer?'<span class="pill'+(t.payer==='Crésus'?' gray':'')+'">'+t.payer+'</span>':'—')+'</td><td style="max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="'+detail+'">'+detail+'</td><td class="num"><strong>'+eur(total)+'</strong></td><td><button class="btn danger small" onclick="deleteTicket(\''+t.id+'\')">✕</button></td></tr>';
     }).join('') + '</tbody></table>';
 }
 function exportTicketsCSV(){
@@ -766,7 +766,14 @@ function excelDate(v){
   return null;
 }
 function importExcelRows(X, wb){
-  var H={date:/^(date|jour)/i, magasin:/magasin|enseigne|commer[cç]ant|boutique|lieu|store/i, total:/total|montant|prix|somme|d[eé]pense|tarif/i};
+  var H={
+    date:/^(date|jour)/i,
+    numero:/num[ée]ro|n\s*[°o]|ticket|réf/i,
+    magasin:/magasin|enseigne|commer[cç]ant|boutique|lieu|store/i,
+    article:/article|libell|produit|descript|d[eé]signation|item|achat/i,
+    qte:/^qt[eé]|quantit|nombre/i,
+    prix:/total|montant|prix|somme|d[eé]pense|tarif/i
+  };
   var rows=[];
   wb.SheetNames.forEach(function(sn){
     var arr;
@@ -778,46 +785,83 @@ function importExcelRows(X, wb){
   var header=null, body=dataRows;
   if(dataRows.length>1){
     var first=dataRows[0].map(function(c){ return String(c).trim(); });
-    var hits=first.filter(function(c){ return H.date.test(c)||H.magasin.test(c)||H.total.test(c)||/libell|descript|article|num/i.test(c); }).length;
+    var hits=first.filter(function(c){ return H.date.test(c)||H.numero.test(c)||H.magasin.test(c)||H.article.test(c)||H.qte.test(c)||H.prix.test(c); }).length;
     if(hits>=1){ header=first; body=dataRows.slice(1); }
   }
-  var iDate=-1, iMag=-1, iTot=-1;
+  var C={date:-1, numero:-1, magasin:-1, article:-1, qte:-1, prix:-1};
   if(header){
     header.forEach(function(c,ix){
-      if(iDate<0 && H.date.test(c)) iDate=ix;
-      else if(iMag<0 && H.magasin.test(c)) iMag=ix;
-      else if(iTot<0 && H.total.test(c)) iTot=ix;
+      if(C.numero<0 && H.numero.test(c)) C.numero=ix;
+      else if(C.date<0 && H.date.test(c)) C.date=ix;
+      else if(C.magasin<0 && H.magasin.test(c)) C.magasin=ix;
+      else if(C.article<0 && H.article.test(c)) C.article=ix;
+      else if(C.qte<0 && H.qte.test(c)) C.qte=ix;
+      else if(C.prix<0 && H.prix.test(c)) C.prix=ix;
     });
   }
-  if(iDate<0 || iTot<0){
+  if(C.date<0 || C.numero<0 || C.prix<0 || C.article<0 || C.magasin<0){
     var nCols=body.reduce(function(m,r){ return Math.max(m,r.length); },0);
-    var stats=[]; for(var ix=0; ix<nCols; ix++) stats.push({dates:0,nums:0,txt:0});
-    body.slice(0,200).forEach(function(r){ r.forEach(function(v,ix){
-      var s=String(v).trim();
-      if(excelDate(v)) stats[ix].dates++;
-      else if(excelNum(v)!==null && s!=='') stats[ix].nums++;
-      else if(s!=='') stats[ix].txt++;
+    var stats=[]; for(var ix=0; ix<nCols; ix++) stats.push({dates:0, nums:0, ints:0, txt:0, distinct:[]});
+    body.slice(0,500).forEach(function(r){ r.forEach(function(v,ix){
+      var st=stats[ix]; if(!st) return;
+      var s=String(v).trim(); if(!s) return;
+      if(excelDate(v)){ st.dates++; return; }
+      var n=excelNum(v);
+      if(n!==null){ st.nums++; if(n===Math.round(n)) st.ints++; if(st.distinct.length<50 && st.distinct.indexOf(s)<0) st.distinct.push(s); return; }
+      st.txt++;
+      if(st.distinct.length<50 && st.distinct.indexOf(s)<0) st.distinct.push(s);
     }); });
-    if(iDate<0){ var bd=-1; stats.forEach(function(s,ix){ if(bd<0||s.dates>stats[bd].dates) bd=ix; }); if(bd>=0 && stats[bd].dates>0) iDate=bd; }
-    if(iTot<0){ var bt=-1; stats.forEach(function(s,ix){ if(ix===iDate) return; if(bt<0||s.nums>stats[bt].nums) bt=ix; }); if(bt>=0 && stats[bt].nums>0) iTot=bt; }
-    if(iMag<0){ var bm=-1; stats.forEach(function(s,ix){ if(ix===iDate||ix===iTot) return; if(bm<0||s.txt>stats[bm].txt) bm=ix; }); if(bm>=0 && stats[bm].txt>0) iMag=bm; }
+    var used=function(ix){ return ix===C.date||ix===C.numero||ix===C.magasin||ix===C.article||ix===C.qte||ix===C.prix; };
+    if(C.date<0){ var bd=-1; stats.forEach(function(s,ix){ if(used(ix)) return; if(bd<0||s.dates>stats[bd].dates) bd=ix; }); if(bd>=0 && stats[bd].dates>0) C.date=bd; }
+    if(C.numero<0){ var bn=-1; stats.forEach(function(s,ix){ if(used(ix)) return; if(s.nums>=2 && s.ints===s.nums && s.distinct.length<s.nums){ if(bn<0||s.nums>stats[bn].nums) bn=ix; } }); if(bn>=0) C.numero=bn; }
+    if(C.prix<0){ var bp=-1; stats.forEach(function(s,ix){ if(used(ix)) return; if(bp<0||s.nums>stats[bp].nums) bp=ix; }); if(bp>=0 && stats[bp].nums>0) C.prix=bp; }
+    if(C.magasin<0){ var bm=-1; stats.forEach(function(s,ix){ if(used(ix)) return; if(s.txt>=2 && s.distinct.length<s.txt){ if(bm<0||s.txt>stats[bm].txt) bm=ix; } }); if(bm>=0) C.magasin=bm; }
+    if(C.article<0){ var ba=-1; stats.forEach(function(s,ix){ if(used(ix)) return; if(ba<0||s.distinct.length>stats[ba].distinct.length) ba=ix; }); if(ba>=0 && stats[ba].txt>0) C.article=ba; }
   }
-  if(iTot<0) iTot=Math.max(0, body[0].length-1);
-  var hasDateCol = iDate>=0;
+  if(C.prix<0) C.prix=Math.max(0, body[0].length-1);
+  var hasDateCol=C.date>=0, hasNum=C.numero>=0;
+  var unitPrix = C.prix>=0 && header && /unit/i.test(header[C.prix]);
   var payer = document.getElementById('xlsxPayer').value || 'Rudy';
-  var out=[], skipped=0, n=0;
+  var groups=[], gmap={};
   body.forEach(function(r){
-    var tot = iTot>=0 ? excelNum(r[iTot]) : null;
-    if(tot===null || tot<=0){ if(r.some(function(c){ return String(c).trim()!==''; })) skipped++; return; }
-    var date = hasDateCol ? excelDate(r[iDate]) : todayISO();
-    if(!date){ skipped++; return; }
-    var magasin = iMag>=0 ? String(r[iMag]||'').trim() : '';
-    n++;
-    out.push({ id:uid(), date:date, magasin:magasin, payer:payer,
-      items:[{ nom:'Ticket n°'+n+' (import Excel)', cat:'Alimentation', qte:1, prix:Math.round(tot*100)/100 }] });
+    var num = hasNum ? String(r[C.numero]==null?'':r[C.numero]).trim() : '';
+    var key = hasNum ? (num || '#auto'+groups.length) : '#row'+groups.length;
+    var g=gmap[key];
+    if(!g){ g=gmap[key]={num:num, rows:[]}; groups.push(g); }
+    g.rows.push(r);
   });
-  var limited = out.slice(0,500);
-  limited.skipped = skipped + (out.length - limited.length);
+  var out=[], skipped=0, nTickets=0, nArticles=0;
+  groups.forEach(function(g){
+    var date=null, magasin='';
+    if(hasDateCol){ g.rows.forEach(function(r){ if(!date){ date=excelDate(r[C.date]); } }); }
+    if(!date && !hasDateCol) date=todayISO();
+    if(!date){ skipped += g.rows.length; return; }
+    if(C.magasin>=0){ g.rows.forEach(function(r){ if(!magasin){ var m=String(r[C.magasin]==null?'':r[C.magasin]).trim(); if(m) magasin=m; } }); }
+    var items=[];
+    g.rows.forEach(function(r){
+      var mont = C.prix>=0 ? excelNum(r[C.prix]) : null;
+      if(mont===null || mont<=0){ if(r.some(function(c){ return String(c).trim()!==''; })) skipped++; return; }
+      var nom = C.article>=0 ? String(r[C.article]==null?'':r[C.article]).trim() : '';
+      var qte=1, prix;
+      if(C.qte>=0){
+        var q=excelNum(r[C.qte]); if(!(q && q>0)) q=1;
+        qte=q;
+        prix = unitPrix ? mont : Math.round((mont/qte)*100)/100;
+      } else { prix=mont; }
+      if(!nom && !hasNum) nom='Ticket n°'+(nTickets+1)+' (import Excel)';
+      if(!nom) nom='Article';
+      items.push({ nom:nom, cat:guessCat(nom), qte:qte, prix:prix });
+      nArticles++;
+    });
+    if(!items.length) return;
+    nTickets++;
+    var t={ id:uid(), date:date, magasin:magasin, payer:payer, import:'Excel', items:items };
+    if(hasNum && g.num) t.numTicket=g.num;
+    out.push(t);
+  });
+  var limited=out.slice(0,500);
+  limited.skipped = skipped + (out.length-limited.length);
+  limited.nArticles = nArticles;
   return limited;
 }
 function importExcel(input){
@@ -837,7 +881,7 @@ function importExcel(input){
       r.readAsArrayBuffer(f);
     });
   }).then(function(tickets){
-    var skipped=tickets.skipped||0;
+    var skipped=tickets.skipped||0, nArt=tickets.nArticles||0;
     if(!tickets.length){
       st.style.color='var(--danger)';
       st.textContent='Aucun ticket trouvé dans ce fichier. Il faut une ligne par ticket, avec au moins un montant (total).';
@@ -846,7 +890,7 @@ function importExcel(input){
     state.tickets = state.tickets.concat(tickets);
     save(); render();
     st.style.color='var(--green)';
-    st.textContent = tickets.length+' ticket'+(tickets.length>1?'s':'')+' importé'+(tickets.length>1?'s':'')+' ✓ (chacun avec un numéro différent)'+(skipped?' — '+skipped+' ligne'+(skipped>1?'s':'')+' ignorée'+(skipped>1?'s':'')+' (date ou montant absents)':'');
+    st.textContent = tickets.length+' ticket'+(tickets.length>1?'s':'')+' importé'+(tickets.length>1?'s':'')+' ✓ — '+nArt+' article'+(nArt>1?'s':'')+' réparti'+(nArt>1?'s':'')+' dans les tickets correspondants'+(skipped?' — '+skipped+' ligne'+(skipped>1?'s':'')+' ignorée'+(skipped>1?'s':'')+' (date ou montant absents)':'');
   }).catch(function(err){
     st.style.color='var(--danger)';
     st.textContent='Échec de l\'import : '+(err && err.message ? err.message : 'erreur inconnue')+' — vérifiez votre connexion (1re utilisation) ou le format du fichier';
@@ -855,6 +899,7 @@ function importExcel(input){
 
 /* COLLAGE & PHOTO DE TICKET */
 function isImportTicket(t){
+  if(t && t.import==='Excel') return true;
   return t && t.items && t.items.length===1 && /\(import Excel\)$/.test(t.items[0].nom||'');
 }
 function countImportTickets(){ return state.tickets.filter(isImportTicket).length; }
