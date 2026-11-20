@@ -178,6 +178,7 @@
   <div class="row" style="margin-bottom:18px;">
     <button class="btn" onclick="openTicketModal()">＋ Ajouter un ticket</button>
     <button class="btn secondary" onclick="document.getElementById('xlsxBrowse').click()">📄 Importer Excel</button>
+    <button class="btn danger" onclick="deleteImportedTickets()">🗑 Supprimer les tickets Excel</button>
     <input type="file" id="xlsxBrowse" accept=".xlsx,.xls" style="display:none" onchange="importExcel(this)">
     <div>
       <label class="hint" style="display:block;">Payé par (imports Excel)</label>
@@ -853,6 +854,19 @@ function importExcel(input){
 }
 
 /* COLLAGE & PHOTO DE TICKET */
+function isImportTicket(t){
+  return t && t.items && t.items.length===1 && /\(import Excel\)$/.test(t.items[0].nom||'');
+}
+function countImportTickets(){ return state.tickets.filter(isImportTicket).length; }
+function deleteImportedTickets(){
+  const n = countImportTickets();
+  if(!n){ toast('Aucun ticket importé d\'Excel à supprimer'); return; }
+  if(!confirm('Supprimer les '+n+' ticket'+(n>1?'s':'')+' importé'+(n>1?'s':'')+' depuis Excel ?\nLes tickets saisies à la main et les photos/collages ne sont pas touchés.')) return;
+  state.tickets = state.tickets.filter(t=>!isImportTicket(t));
+  save(); render();
+  toast(n+' ticket'+(n>1?'s':'')+' supprimé'+(n>1?'s':'')+' ✓');
+  const st=$('xlsxStatus'); st.style.display='block'; st.style.color='var(--green)'; st.textContent=n+' ticket'+(n>1?'s':'')+' importé'+(n>1?'s':'')+' depuis Excel supprimé'+(n>1?'s':'')+' ✓';
+}
 function openPasteModal(fromPhoto){
   $('pasteArea').value='';
   $('ocrProgress').style.display='none';
