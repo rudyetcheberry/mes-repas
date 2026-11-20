@@ -177,8 +177,16 @@
 <section id="tab-tickets" style="display:none">
   <div class="row" style="margin-bottom:18px;">
     <button class="btn" onclick="openTicketModal()">＋ Ajouter un ticket</button>
-    <button class="btn secondary" onclick="exportTicketsCSV()">⬇ Exporter en CSV</button>
+    <button class="btn secondary" onclick="document.getElementById('xlsxBrowse').click()">📄 Importer Excel</button>
+    <input type="file" id="xlsxBrowse" accept=".xlsx,.xls" style="display:none" onchange="importExcel(this)">
+    <div>
+      <label class="hint" style="display:block;">Payé par (imports Excel)</label>
+      <select id="xlsxPayer" style="width:120px;">
+        <option>Rudy</option><option>Sarah</option><option>Crésus</option>
+      </select>
+    </div>
   </div>
+  <p id="xlsxStatus" class="hint" style="display:none;"></p>
   <div class="card">
     <h2>Tickets enregistrés</h2>
     <div id="ticketsList"></div>
@@ -718,6 +726,130 @@ function exportTicketsCSV(){
   const csv = rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(';')).join('\n');
   download('tickets-courses.csv', csv, 'text/csv');
   toast('CSV exporté ✓');
+}
+
+/* IMPORT EXCEL (.xlsx) — une ligne du classeur = un ticket, numéro différent à chaque fois */
+function loadXLSX(){
+  if(window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload=()=>resolve(window.XLSX);
+    s.onerror=()=>reject(new Error('cdn'));
+    document.head.appendChild(s);
+  });
+}
+function excelNum(v){
+  if(typeof v==='number') return isFinite(v)?v:null;
+  if(typeof v!=='string') return null;
+  let s=v.replace(/[€$\s\u00a0\u202f]/g,'').trim();
+  if(!s) return null;
+  if(/^\d{1,3}(\.\d{3})+,\d{1,2}$/.test(s)) s=s.replace(/\./g,'').replace(',','.');
+  else if(/^\d+,\d{1,2}$/.test(s)) s=s.replace(',','.');
+  const n=parseFloat(s);
+  return isNaN(n)?null:n;
+}
+function excelDate(v){
+  if(v instanceof Date && !isNaN(v.getTime()))
+    return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');
+  if(typeof v==='number' && v>0 && v<80000){
+    const d=new Date(Date.UTC(1899,11,30)+Math.round(v)*86400000);
+    return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+  }
+  if(typeof v==='string'){
+    let m=v.trim().match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/);
+    if(m){ let y=+m[3]; if(y<100) y+=2000; return y+'-'+String(+m[2]).padStart(2,'0')+'-'+String(+m[1]).padStart(2,'0'); }
+    m=v.trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if(m) return m[1]+'-'+String(+m[2]).padStart(2,'0')+'-'+String(+m[3]).padStart(2,'0');
+  }
+  return null;
+}
+function importExcelRows(X, wb){
+  var H={date:/^(date|jour)/i, magasin:/magasin|enseigne|commer[cç]ant|boutique|lieu|store/i, total:/total|montant|prix|somme|d[eé]pense|tarif/i};
+  var rows=[];
+  wb.SheetNames.forEach(function(sn){
+    var arr;
+    try{ arr=X.utils.sheet_to_json(wb.Sheets[sn], {header:1, raw:true, defval:''}); }catch(e){ return; }
+    arr.forEach(function(r){ rows.push(r); });
+  });
+  var dataRows=rows.filter(function(r){ return r && r.some(function(c){ return String(c).trim()!==''; }); });
+  if(!dataRows.length) return [];
+  var header=null, body=dataRows;
+  if(dataRows.length>1){
+    var first=dataRows[0].map(function(c){ return String(c).trim(); });
+    var hits=first.filter(function(c){ return H.date.test(c)||H.magasin.test(c)||H.total.test(c)||/libell|descript|article|num/i.test(c); }).length;
+    if(hits>=1){ header=first; body=dataRows.slice(1); }
+  }
+  var iDate=-1, iMag=-1, iTot=-1;
+  if(header){
+    header.forEach(function(c,ix){
+      if(iDate<0 && H.date.test(c)) iDate=ix;
+      else if(iMag<0 && H.magasin.test(c)) iMag=ix;
+      else if(iTot<0 && H.total.test(c)) iTot=ix;
+    });
+  }
+  if(iDate<0 || iTot<0){
+    var nCols=body.reduce(function(m,r){ return Math.max(m,r.length); },0);
+    var stats=[]; for(var ix=0; ix<nCols; ix++) stats.push({dates:0,nums:0,txt:0});
+    body.slice(0,200).forEach(function(r){ r.forEach(function(v,ix){
+      var s=String(v).trim();
+      if(excelDate(v)) stats[ix].dates++;
+      else if(excelNum(v)!==null && s!=='') stats[ix].nums++;
+      else if(s!=='') stats[ix].txt++;
+    }); });
+    if(iDate<0){ var bd=-1; stats.forEach(function(s,ix){ if(bd<0||s.dates>stats[bd].dates) bd=ix; }); if(bd>=0 && stats[bd].dates>0) iDate=bd; }
+    if(iTot<0){ var bt=-1; stats.forEach(function(s,ix){ if(ix===iDate) return; if(bt<0||s.nums>stats[bt].nums) bt=ix; }); if(bt>=0 && stats[bt].nums>0) iTot=bt; }
+    if(iMag<0){ var bm=-1; stats.forEach(function(s,ix){ if(ix===iDate||ix===iTot) return; if(bm<0||s.txt>stats[bm].txt) bm=ix; }); if(bm>=0 && stats[bm].txt>0) iMag=bm; }
+  }
+  if(iTot<0) iTot=Math.max(0, body[0].length-1);
+  var hasDateCol = iDate>=0;
+  var payer = document.getElementById('xlsxPayer').value || 'Rudy';
+  var out=[], skipped=0, n=0;
+  body.forEach(function(r){
+    var tot = iTot>=0 ? excelNum(r[iTot]) : null;
+    if(tot===null || tot<=0){ if(r.some(function(c){ return String(c).trim()!==''; })) skipped++; return; }
+    var date = hasDateCol ? excelDate(r[iDate]) : todayISO();
+    if(!date){ skipped++; return; }
+    var magasin = iMag>=0 ? String(r[iMag]||'').trim() : '';
+    n++;
+    out.push({ id:uid(), date:date, magasin:magasin, payer:payer,
+      items:[{ nom:'Ticket n°'+n+' (import Excel)', cat:'Alimentation', qte:1, prix:Math.round(tot*100)/100 }] });
+  });
+  var limited = out.slice(0,500);
+  limited.skipped = skipped + (out.length - limited.length);
+  return limited;
+}
+function importExcel(input){
+  var f=input.files && input.files[0]; if(!f) return;
+  input.value='';
+  var st=document.getElementById('xlsxStatus');
+  st.style.display='block'; st.style.color='var(--muted)'; st.textContent='Lecture du fichier… (1re fois : chargement du module, quelques secondes)';
+  loadXLSX().then(function(X){
+    st.textContent='Analyse du classeur…';
+    return new Promise(function(resolve,reject){
+      var r=new FileReader();
+      r.onload=function(){
+        try{ resolve(importExcelRows(X, X.read(new Uint8Array(r.result), {type:'array', cellDates:true}))); }
+        catch(e){ reject(e); }
+      };
+      r.onerror=function(){ reject(new Error('lecture du fichier impossible')); };
+      r.readAsArrayBuffer(f);
+    });
+  }).then(function(tickets){
+    var skipped=tickets.skipped||0;
+    if(!tickets.length){
+      st.style.color='var(--danger)';
+      st.textContent='Aucun ticket trouvé dans ce fichier. Il faut une ligne par ticket, avec au moins un montant (total).';
+      return;
+    }
+    state.tickets = state.tickets.concat(tickets);
+    save(); render();
+    st.style.color='var(--green)';
+    st.textContent = tickets.length+' ticket'+(tickets.length>1?'s':'')+' importé'+(tickets.length>1?'s':'')+' ✓ (chacun avec un numéro différent)'+(skipped?' — '+skipped+' ligne'+(skipped>1?'s':'')+' ignorée'+(skipped>1?'s':'')+' (date ou montant absents)':'');
+  }).catch(function(err){
+    st.style.color='var(--danger)';
+    st.textContent='Échec de l\'import : '+(err && err.message ? err.message : 'erreur inconnue')+' — vérifiez votre connexion (1re utilisation) ou le format du fichier';
+  });
 }
 
 /* COLLAGE & PHOTO DE TICKET */

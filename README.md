@@ -41,7 +41,7 @@ Ouvrez directement l'URL de l'application, ou téléchargez `index.html` et doub
 - **Saisie détaillée** : article, catégorie (devinée automatiquement), quantité, prix
 - Tableau de bord : dépenses du mois, panier moyen, dépense hebdomadaire moyenne, répartition par catégorie, évolution sur 6 mois
 - Suivi vs objectif mensuel + historique ; l'objectif peut être défini après 1-2 mois d'observation
-- Export CSV des tickets, export/import JSON de sauvegarde complète
+- Export CSV des tickets, **import Excel (.xlsx)** : 1 ligne du classeur = 1 ticket (colonnes date / magasin / montant détectées automatiquement, montant avec virgule accepté, choix « payé par »)
 
 ## 💾 Données
 
